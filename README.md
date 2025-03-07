@@ -2,7 +2,8 @@
 
 A high-performance Apache module for on-the-fly image resizing and compression with caching capabilities.
 
-**THIS TOOL IS IN VERY EARLY ALFA STAGE**
+**⚠️ WARNING: THIS TOOL IS IN VERY EARLY ALPHA STAGE ⚠️**
+
 
 ## Features
 
