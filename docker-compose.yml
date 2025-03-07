@@ -1,0 +1,13 @@
+version: '3'
+
+services:
+  apache-image-resize:
+    build: .
+    ports:
+      - "8080:80"
+    volumes:
+      - ./images:/var/www/images
+      - image_resize_cache:/var/cache/apache2/image_resize
+    restart: unless-stopped
+    environment:
+      - APACHE_LOG_
