@@ -5,7 +5,7 @@
  */
 
 #include "mod_image_resize.h"
-#include <wand/MagickWand.h>
+#include <MagickWand/MagickWand.h>
 #include <jpeglib.h>
 #include <jerror.h>
 #include <libimagequant.h>
@@ -22,10 +22,10 @@ image_data *read_and_resize_image(request_rec *r, const char *path, int width, i
     size_t data_size;
     char *magick_format = NULL;
 
-    // DEBUG_LOG(r, "Reading and resizing image: %s -> %dx%d", path, width, height);
+    DEBUG_LOG(r, "Reading and resizing image: %s -> %dx%d", path, width, height);
 
+    apr_thread_mutex_lock(imagemagick_mutex);
     // Initialize MagickWand
-    MagickWandGenesis();
     wand = NewMagickWand();
 
     // Read the image
@@ -39,7 +39,7 @@ image_data *read_and_resize_image(request_rec *r, const char *path, int width, i
         MagickRelinquishMemory(description);
 
         DestroyMagickWand(wand);
-        MagickWandTerminus();
+        apr_thread_mutex_unlock(imagemagick_mutex);
         return NULL;
     }
 
@@ -118,7 +118,7 @@ image_data *read_and_resize_image(request_rec *r, const char *path, int width, i
         MagickRelinquishMemory(description);
 
         DestroyMagickWand(wand);
-        MagickWandTerminus();
+        apr_thread_mutex_unlock(imagemagick_mutex);
         return NULL;
     }
 
@@ -141,7 +141,7 @@ image_data *read_and_resize_image(request_rec *r, const char *path, int width, i
         if (data)
             MagickRelinquishMemory(data);
         DestroyMagickWand(wand);
-        MagickWandTerminus();
+        apr_thread_mutex_unlock(imagemagick_mutex);
         return NULL;
     }
 
@@ -152,7 +152,7 @@ image_data *read_and_resize_image(request_rec *r, const char *path, int width, i
         DEBUG_LOG(r, "Memory allocation error for ImageData structure");
         MagickRelinquishMemory(data);
         DestroyMagickWand(wand);
-        MagickWandTerminus();
+        apr_thread_mutex_unlock(imagemagick_mutex);
         return NULL;
     }
 
@@ -163,7 +163,7 @@ image_data *read_and_resize_image(request_rec *r, const char *path, int width, i
         DEBUG_LOG(r, "Memory allocation error for image data");
         MagickRelinquishMemory(data);
         DestroyMagickWand(wand);
-        MagickWandTerminus();
+        apr_thread_mutex_unlock(imagemagick_mutex);
         return NULL;
     }
 
@@ -180,7 +180,8 @@ image_data *read_and_resize_image(request_rec *r, const char *path, int width, i
 
     // Clean up MagickWand
     DestroyMagickWand(wand);
-    MagickWandTerminus();
+
+    apr_thread_mutex_unlock(imagemagick_mutex);
 
     return img_data;
 }

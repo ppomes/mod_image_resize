@@ -5,11 +5,12 @@ APXS = apxs
 
 # Dependency paths
 MOZJPEG_PATH = /opt/mozjpeg
+MAGICK_CFLAGS = $(shell pkg-config --cflags MagickWand-7.Q16HDRI 2>/dev/null || pkg-config --cflags MagickWand-7.Q16 2>/dev/null || pkg-config --cflags MagickWand)
+MAGICK_LIBS = $(shell pkg-config --libs MagickWand-7.Q16HDRI 2>/dev/null || pkg-config --libs MagickWand-7.Q16 2>/dev/null || pkg-config --libs MagickWand)
 
-# Filter out problematic flags from pkg-config output
-MAGICK_INCLUDE = $(shell pkg-config --cflags-only-I MagickWand-6.Q16 2>/dev/null || pkg-config --cflags-only-I MagickWand)
-MAGICK_LIBS = $(shell pkg-config --libs-only-L MagickWand-6.Q16 2>/dev/null || pkg-config --libs-only-L MagickWand)
-MAGICK_LIBS_NAMES = $(shell pkg-config --libs-only-l MagickWand-6.Q16 2>/dev/null || pkg-config --libs-only-l MagickWand)
+# Filter problematic flags
+MAGICK_INCLUDE = $(shell pkg-config --cflags-only-I MagickWand-7.Q16HDRI 2>/dev/null || pkg-config --cflags-only-I MagickWand-7.Q16 2>/dev/null || pkg-config --cflags-only-I MagickWand)
+MAGICK_LIBS_NAMES = $(shell pkg-config --libs-only-l MagickWand-7.Q16HDRI 2>/dev/null || pkg-config --libs-only-l MagickWand-7.Q16 2>/dev/null || pkg-config --libs-only-l MagickWand)
 
 # Source files
 SOURCES = mod_image_resize.c mod_image_resize_utils.c mod_image_resize_processing.c
@@ -19,9 +20,10 @@ all: mod_image_resize.la
 
 mod_image_resize.la: $(SOURCES)
 	$(APXS) -c -i -Wc,-I$(MOZJPEG_PATH)/include $(MAGICK_INCLUDE) \
-		-Wl,-L$(MOZJPEG_PATH)/lib $(MAGICK_LIBS) \
+		-Wl,-L$(MOZJPEG_PATH)/lib \
 		-Wl,-ljpeg -Wl,-lpng -Wl,-limagequant $(MAGICK_LIBS_NAMES) \
-		-Wl,-rpath=$(MOZJPEG_PATH)/lib \
+		-Wl,-rpath=$(MOZJPEG_PATH)/lib:/usr/local/lib \
+		-Wc,-DMAGICKWAND_7 -Wc,-DMAGICKCORE_HDRI_ENABLE=1 \
 		$(SOURCES)
 
 # Install the module (run after compilation)

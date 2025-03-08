@@ -6,7 +6,7 @@
  */
 
 #include "mod_image_resize.h"
-#include <wand/MagickWand.h>
+#include <MagickWand/MagickWand.h>
 
 // External function declarations
 extern image_request *parse_url(request_rec *r, const char *url);
@@ -19,13 +19,21 @@ extern int process_image(request_rec *r, const image_resize_config *cfg,
 // Global mutex for cache operations
 static apr_thread_mutex_t *cache_mutex = NULL;
 
+// Global mutex and variable for ImageMagick init and processing
+int imagemagick_initialized = 0;
+apr_thread_mutex_t *imagemagick_mutex = NULL;
+
 /**
  * Module cleanup function - called when pools are cleaned up
  */
 static apr_status_t image_resize_cleanup(void *data)
 {
     // Release ImageMagick resources
-    MagickWandTerminus();
+    if (imagemagick_initialized)
+    {
+        MagickWandTerminus();
+        imagemagick_initialized = 0;
+    }
 
     server_rec *s = (server_rec *)data;
     ap_log_error(APLOG_MARK, APLOG_INFO, 0, s,
@@ -39,8 +47,12 @@ static apr_status_t image_resize_cleanup(void *data)
  */
 static int image_resize_init(apr_pool_t *p, apr_pool_t *plog, apr_pool_t *ptemp, server_rec *s)
 {
+    // Create ImageMagick Mutex
+    apr_thread_mutex_create(&imagemagick_mutex, APR_THREAD_MUTEX_DEFAULT, p);
+
     // Initialize ImageMagick once at startup
     MagickWandGenesis();
+    imagemagick_initialized = 1;
 
     // Create cache mutex
     apr_status_t status = apr_thread_mutex_create(&cache_mutex, APR_THREAD_MUTEX_DEFAULT, p);

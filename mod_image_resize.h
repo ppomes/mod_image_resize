@@ -45,6 +45,9 @@ typedef struct
     char *format;   // "jpg", "png", "gif", "webp" or "unknown"
 } image_request;
 
+extern int imagemagick_initialized;
+extern apr_thread_mutex_t *imagemagick_mutex;
+
 // Image data structure
 typedef struct
 {

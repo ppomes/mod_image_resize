@@ -6,7 +6,7 @@
 
 #include "mod_image_resize.h"
 #include <regex.h>
-#include <wand/MagickWand.h>
+#include <MagickWand/MagickWand.h>
 
 /**
  * Parse the URL and extract image request information.
@@ -93,7 +93,7 @@ int detect_image_type(request_rec *r, const char *path, char *format_buffer, siz
     DEBUG_LOG(r, "Detecting image type for: %s", path);
 
     // Initialize MagickWand
-    MagickWandGenesis();
+    apr_thread_mutex_lock(imagemagick_mutex);
     wand = NewMagickWand();
 
     // Read the image
@@ -101,7 +101,7 @@ int detect_image_type(request_rec *r, const char *path, char *format_buffer, siz
     {
         DEBUG_LOG(r, "Error reading image for type detection");
         DestroyMagickWand(wand);
-        MagickWandTerminus();
+        apr_thread_mutex_unlock(imagemagick_mutex);
         return -1;
     }
 
@@ -148,7 +148,8 @@ int detect_image_type(request_rec *r, const char *path, char *format_buffer, siz
 
     // Clean up resources
     DestroyMagickWand(wand);
-    MagickWandTerminus();
+
+    apr_thread_mutex_unlock(imagemagick_mutex);
 
     DEBUG_LOG(r, "Final detected format: %s", format);
     return 0;

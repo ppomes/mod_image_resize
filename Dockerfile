@@ -5,7 +5,6 @@ RUN apt-get update && apt-get install -y \
     apache2 \
     apache2-dev \
     build-essential \
-    libmagickwand-dev \
     libjpeg-dev \
     libpng-dev \
     libimagequant-dev \
@@ -13,7 +12,24 @@ RUN apt-get update && apt-get install -y \
     cmake \
     nasm \
     git \
+    libxml2-dev \
+    libssl-dev \
+    libghc-zlib-dev \
+    libde265-dev \
+    libheif-dev \
+    libx11-dev \
     && rm -rf /var/lib/apt/lists/*
+
+# Installation de ImageMagick 7
+WORKDIR /tmp
+RUN git clone https://github.com/ImageMagick/ImageMagick.git && \
+    cd ImageMagick && \
+    ./configure --with-modules --enable-shared --disable-static --enable-hdri && \
+    make -j$(nproc) && \
+    make install && \
+    ldconfig && \
+    cd .. && \
+    rm -rf ImageMagick
 
 # Install mozjpeg
 WORKDIR /tmp
@@ -32,8 +48,8 @@ RUN git clone https://github.com/mozilla/mozjpeg.git && \
 
 # Environment variables
 ENV PATH="/opt/mozjpeg/bin:${PATH}" \
-    LD_LIBRARY_PATH="/opt/mozjpeg/lib:${LD_LIBRARY_PATH}" \
-    PKG_CONFIG_PATH="/opt/mozjpeg/lib/pkgconfig:${PKG_CONFIG_PATH}"
+    LD_LIBRARY_PATH="/opt/mozjpeg/lib:/usr/local/lib:${LD_LIBRARY_PATH}" \
+    PKG_CONFIG_PATH="/opt/mozjpeg/lib/pkgconfig:/usr/local/lib/pkgconfig:${PKG_CONFIG_PATH}"
 
 # Create necessary directories
 RUN mkdir -p /var/www/images /var/cache/apache2/image_resize && \
@@ -54,9 +70,6 @@ RUN make && \
 # Copy Apache configuration
 COPY mod_image_resize.conf /etc/apache2/conf-available/
 RUN a2enconf mod_image_resize
-
-# Display debug information
-RUN apachectl -M | grep image_resize
 
 # Expose port
 EXPOSE 80
