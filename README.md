@@ -50,7 +50,7 @@ sudo apt-get install -y \
     libx11-dev
 
 # Install ImageMagick
-git clone https://github.com/ImageMagick/ImageMagick.git &&
+git clone https://github.com/ImageMagick/ImageMagick.git
 cd ImageMagick
 ./configure --with-modules --enable-shared --disable-static --enable-hdri
 make -j$(nproc)
