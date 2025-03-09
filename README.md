@@ -40,7 +40,21 @@ sudo apt-get install -y \
     libimagequant-dev \
     pkg-config \
     cmake \
-    nasm
+    nasm \
+    git \
+    libxml2-dev \
+    libssl-dev \
+    libghc-zlib-dev \
+    libde265-dev \
+    libheif-dev \
+    libx11-dev
+
+# Install ImageMagick
+git clone https://github.com/ImageMagick/ImageMagick.git &&
+cd ImageMagick
+./configure --with-modules --enable-shared --disable-static --enable-hdri
+make -j$(nproc)
+sudo make install
 
 # Install mozjpeg
 git clone https://github.com/mozilla/mozjpeg.git
