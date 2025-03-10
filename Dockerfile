@@ -7,6 +7,7 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     libjpeg-dev \
     libpng-dev \
+    libwebp-dev \
     libimagequant-dev \
     pkg-config \
     cmake \

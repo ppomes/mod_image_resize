@@ -37,6 +37,7 @@ sudo apt-get install -y \
     libmagickwand-dev \
     libjpeg-dev \
     libpng-dev \
+    libwebp-dev \
     libimagequant-dev \
     pkg-config \
     cmake \
