@@ -2,6 +2,8 @@
 
 Apache module for on-the-fly image resizing and compression using libvips for high-performance image processing.
 
+**⚠️ WARNING: THIS TOOL IS IN VERY EARLY ALPHA STAGE ⚠️**
+
 ## Features
 
 - **On-the-fly image resizing** via URL parameters
@@ -115,14 +117,6 @@ docker run -d -p 8080:80 \
 - The module is thread-safe and works well with mpm_worker and mpm_event
 - Cache files are protected by a mutex to prevent race conditions
 - libvips is designed for high performance and minimal memory usage
-- For PNG compression, the module shells out to pngquant which may add some overhead
-
-## Benchmarks
-
-In our testing, this module with libvips is approximately:
-- 4-6x faster than a similar module using ImageMagick
-- 2-3x faster than PHP-GD based resizing
-- Uses 3-4x less memory than ImageMagick especially for large images
 
 ## License
 
@@ -131,5 +125,4 @@ This module is released under the Apache License 2.0.
 ## Credits
 
 - libvips - High-performance image processing library
-- pngquant - PNG compression tool
 - Apache HTTP Server Project
