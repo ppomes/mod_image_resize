@@ -30,6 +30,7 @@ This module uses libvips instead of ImageMagick for several key reasons:
 - libvips 8.9+ (with development headers)
 - pngquant (for PNG optimization)
 - libimagequant-dev
+- mozjpeg (for JPG optimization)
 
 ## Installation
 
@@ -74,11 +75,8 @@ This will resize the image located at `/var/www/images/path/to/image.jpg` to dim
     # Cache directory for resized images
     ImageResizeCacheDir /var/cache/apache2/image_resize
     
-    # JPEG compression quality (0-100)
+    # Compression quality (0-100)
     ImageResizeJpegQuality 85
-    
-    # PNG compression quality (min max, 0-100)
-    ImageResizePngQuality 65 80
     
     # Cache lifetime in seconds (1 day = 86400)
     ImageResizeCacheMaxAge 86400

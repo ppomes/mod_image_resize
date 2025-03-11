@@ -29,9 +29,7 @@ extern module AP_MODULE_DECLARE_DATA image_resize_module;
 typedef struct {
     const char *image_dir;       // Source image directory
     const char *cache_dir;       // Cache directory
-    int jpeg_quality;            // JPEG quality (0-100)
-    int png_quality_min;         // PNG min quality (0-100)
-    int png_quality_max;         // PNG max quality (0-100)
+    int quality;                 // Universal image quality (0-100)
     int cache_max_age;           // Cache lifetime in seconds
     int enable_debug;            // Enable debug logging
 } image_resize_config;

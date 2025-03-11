@@ -232,7 +232,7 @@ static int process_image(request_rec *r, const image_resize_config *cfg,
     if (strcmp(req->format, "jpg") == 0) {
         // JPEG saving with mozjpeg (if available)
         if (vips_jpegsave(out, output_path, 
-                         "Q", cfg->jpeg_quality, 
+                         "Q", cfg->quality, // Use unified quality setting
                          "optimize_coding", TRUE,
                          "interlace", TRUE,
                          NULL)) {
@@ -248,7 +248,7 @@ static int process_image(request_rec *r, const image_resize_config *cfg,
         // PNG saving with integrated libimagequant optimization
         if (vips_pngsave(out, output_path, 
                         "palette", TRUE,           // Use color palette
-                        "Q", cfg->png_quality_min, // Quality
+                        "Q", cfg->quality,         // Use unified quality setting
                         "compression", 9,          // Maximum compression
                         "interlace", TRUE,         // Progressive loading
                         NULL)) {
@@ -261,8 +261,8 @@ static int process_image(request_rec *r, const image_resize_config *cfg,
         ret = 0;
     }
     else if (strcmp(req->format, "webp") == 0) {
-        // WebP saving
-        if (vips_webpsave(out, output_path, "Q", 75, NULL)) {
+        // WebP saving with unified quality
+        if (vips_webpsave(out, output_path, "Q", cfg->quality, NULL)) {
             DEBUG_LOG(r, "WebP save failed: %s", vips_error_buffer());
             vips_error_clear();
             g_object_unref(in);
@@ -298,7 +298,7 @@ static int process_image(request_rec *r, const image_resize_config *cfg,
     else {
         DEBUG_LOG(r, "Unsupported format: %s", req->format);
         // Default to JPEG
-        if (vips_jpegsave(out, output_path, "Q", cfg->jpeg_quality, NULL)) {
+        if (vips_jpegsave(out, output_path, "Q", cfg->quality, NULL)) {
             DEBUG_LOG(r, "Default JPEG save failed: %s", vips_error_buffer());
             vips_error_clear();
             g_object_unref(in);
@@ -520,9 +520,7 @@ static void *create_dir_config(apr_pool_t *p, char *arg) {
         // Default values
         cfg->image_dir = "/var/www/images";     // Default directory
         cfg->cache_dir = "/var/cache/apache2/image_resize"; // Default cache
-        cfg->jpeg_quality = 85;                 // Default JPEG quality
-        cfg->png_quality_min = 65;              // Default PNG min quality
-        cfg->png_quality_max = 80;              // Default PNG max quality
+        cfg->quality = 75;                      // Default unified quality
         cfg->cache_max_age = 86400;             // Default cache lifetime (1 day)
         cfg->enable_debug = 0;                  // Debug disabled by default
     }
@@ -543,27 +541,13 @@ static const char *set_cache_dir(cmd_parms *cmd, void *conf, const char *arg) {
     return NULL;
 }
 
-static const char *set_jpeg_quality(cmd_parms *cmd, void *conf, const char *arg) {
+static const char *set_quality(cmd_parms *cmd, void *conf, const char *arg) {
     image_resize_config *cfg = (image_resize_config *)conf;
     int val = atoi(arg);
     if (val < 0 || val > 100) {
-        return "ImageResizeJpegQuality must be between 0 and 100";
+        return "ImageResizeQuality must be between 0 and 100";
     }
-    cfg->jpeg_quality = val;
-    return NULL;
-}
-
-static const char *set_png_quality(cmd_parms *cmd, void *conf, const char *arg1, const char *arg2) {
-    image_resize_config *cfg = (image_resize_config *)conf;
-    int min_val = atoi(arg1);
-    int max_val = atoi(arg2);
-    
-    if (min_val < 0 || min_val > 100 || max_val < 0 || max_val > 100 || min_val > max_val) {
-        return "ImageResizePngQuality must be between 0 and 100, and min <= max";
-    }
-    
-    cfg->png_quality_min = min_val;
-    cfg->png_quality_max = max_val;
+    cfg->quality = val;
     return NULL;
 }
 
@@ -589,10 +573,8 @@ static const command_rec image_resize_cmds[] = {
                  "Directory containing source images"),
     AP_INIT_TAKE1("ImageResizeCacheDir", set_cache_dir, NULL, ACCESS_CONF,
                  "Directory for storing resized images"),
-    AP_INIT_TAKE1("ImageResizeJpegQuality", set_jpeg_quality, NULL, ACCESS_CONF,
-                 "JPEG compression quality (0-100)"),
-    AP_INIT_TAKE2("ImageResizePngQuality", set_png_quality, NULL, ACCESS_CONF,
-                 "PNG compression quality (min max, 0-100)"),
+    AP_INIT_TAKE1("ImageResizeQuality", set_quality, NULL, ACCESS_CONF,
+                 "Universal image compression quality (0-100)"),
     AP_INIT_TAKE1("ImageResizeCacheMaxAge", set_cache_max_age, NULL, ACCESS_CONF,
                  "Cache lifetime in seconds"),
     AP_INIT_FLAG("ImageResizeDebug", set_enable_debug, NULL, ACCESS_CONF,
