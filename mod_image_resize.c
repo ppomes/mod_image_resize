@@ -323,13 +323,40 @@ static int process_image_with_cache(request_rec *r, const image_resize_config *c
     
     // Check if image exists in cache (no mutex needed for reading)
     apr_finfo_t finfo;
-    if (apr_stat(&finfo, cache_path, APR_FINFO_SIZE, r->pool) == APR_SUCCESS) {
+    if (apr_stat(&finfo, cache_path, APR_FINFO_SIZE | APR_FINFO_MTIME, r->pool) == APR_SUCCESS) {
         // Image already exists in cache
-        DEBUG_LOG(r, "Image found in cache");
-        return 0; // Success
-    } 
-    
-    DEBUG_LOG(r, "Image not found in cache, processing...");
+        
+        // Check if we need to validate the source modification time
+        if (cfg->check_source_mtime) {
+            char source_path[512];
+            apr_finfo_t source_finfo;
+            
+            // Build path to source image
+            apr_snprintf(source_path, sizeof(source_path), "%s/%s", cfg->image_dir, req->filename);
+            
+            // Get source file info
+            if (apr_stat(&source_finfo, source_path, APR_FINFO_MTIME, r->pool) == APR_SUCCESS) {
+                // Compare modification times
+                if (source_finfo.mtime > finfo.mtime) {
+                    DEBUG_LOG(r, "Source image is newer than cached image, regenerating");
+                    // Continue to processing - don't return here
+                } else {
+                    DEBUG_LOG(r, "Image found in cache and is up-to-date");
+                    return 0; // Success - cache is valid
+                }
+            } else {
+                DEBUG_LOG(r, "Unable to stat source image, using cached version");
+                return 0; // Success - use cached version
+            }
+        } else {
+            // No mtime check needed
+            DEBUG_LOG(r, "Image found in cache");
+            return 0; // Success
+        }
+    } else {
+        // Image not in cache
+        DEBUG_LOG(r, "Image not found in cache, processing...");
+    }
     
     // Ensure cache base directory exists
     if (ensure_directory_exists(r->pool, cfg->cache_dir) != APR_SUCCESS) {
@@ -344,12 +371,43 @@ static int process_image_with_cache(request_rec *r, const image_resize_config *c
     }
     
     // Double-check if image exists in cache after locking (another thread might have created it)
-    if (cfg->enable_mutex && apr_stat(&finfo, cache_path, APR_FINFO_SIZE, r->pool) == APR_SUCCESS) {
-        DEBUG_LOG(r, "Image created by another thread while waiting for lock");
-        if (cfg->enable_mutex && cache_mutex) {
-            apr_thread_mutex_unlock(cache_mutex);
+    if (cfg->enable_mutex && apr_stat(&finfo, cache_path, APR_FINFO_SIZE | APR_FINFO_MTIME, r->pool) == APR_SUCCESS) {
+        // Check if we need to validate source modification time, even for image created by another thread
+        if (cfg->check_source_mtime) {
+            char source_path[512];
+            apr_finfo_t source_finfo;
+            
+            // Build path to source image
+            apr_snprintf(source_path, sizeof(source_path), "%s/%s", cfg->image_dir, req->filename);
+            
+            // Get source file info
+            if (apr_stat(&source_finfo, source_path, APR_FINFO_MTIME, r->pool) == APR_SUCCESS) {
+                // Compare modification times
+                if (source_finfo.mtime > finfo.mtime) {
+                    DEBUG_LOG(r, "Source image is newer than image created by another thread, regenerating");
+                    // Continue to processing - don't return here
+                } else {
+                    DEBUG_LOG(r, "Image created by another thread is up-to-date");
+                    if (cfg->enable_mutex && cache_mutex) {
+                        apr_thread_mutex_unlock(cache_mutex);
+                    }
+                    return 0; // Success - cache is valid
+                }
+            } else {
+                DEBUG_LOG(r, "Unable to stat source image, using cached version from another thread");
+                if (cfg->enable_mutex && cache_mutex) {
+                    apr_thread_mutex_unlock(cache_mutex);
+                }
+                return 0; // Success - use cached version
+            }
+        } else {
+            // No mtime check needed
+            DEBUG_LOG(r, "Image created by another thread while waiting for lock");
+            if (cfg->enable_mutex && cache_mutex) {
+                apr_thread_mutex_unlock(cache_mutex);
+            }
+            return 0; // Success
         }
-        return 0; // Success
     }
     
     // Process the image
@@ -532,6 +590,7 @@ static void *create_dir_config(apr_pool_t *p, char *arg) {
         cfg->cache_max_age = 86400;             // Default cache lifetime (1 day)
         cfg->enable_debug = 0;                  // Debug disabled by default
         cfg->enable_mutex = 1;                  // Mutex enabled by default
+        cfg->check_source_mtime = 0;            // Source mtime check disabled by default
     }
     
     return cfg;
@@ -582,6 +641,12 @@ static const char *set_enable_mutex(cmd_parms *cmd, void *conf, int flag) {
     return NULL;
 }
 
+static const char *set_check_source_mtime(cmd_parms *cmd, void *conf, int flag) {
+    image_resize_config *cfg = (image_resize_config *)conf;
+    cfg->check_source_mtime = flag;
+    return NULL;
+}
+
 // Configuration commands table
 static const command_rec image_resize_cmds[] = {
     AP_INIT_TAKE1("ImageResizeSourceDir", set_image_dir, NULL, ACCESS_CONF,
@@ -596,6 +661,8 @@ static const command_rec image_resize_cmds[] = {
                 "Enable debug logging"),
     AP_INIT_FLAG("ImageResizeMutex", set_enable_mutex, NULL, ACCESS_CONF,
                 "Enable mutex for cache operations (On/Off)"),
+    AP_INIT_FLAG("ImageResizeCheckMTime", set_check_source_mtime, NULL, ACCESS_CONF,
+                "Check if source image is newer than cached image (On/Off)"),
     { NULL }
 };
 

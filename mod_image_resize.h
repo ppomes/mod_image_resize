@@ -33,6 +33,7 @@ typedef struct {
     int cache_max_age;           // Cache lifetime in seconds
     int enable_debug;            // Enable debug logging
     int enable_mutex;            // Enable cache mutex (0/1)
+    int check_source_mtime;      // Check if source image is newer than cached image (0/1)
 } image_resize_config;
 
 // Request info structure
