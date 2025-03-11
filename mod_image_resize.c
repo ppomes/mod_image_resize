@@ -189,7 +189,7 @@ static int process_image(request_rec *r, const image_resize_config *cfg,
     apr_finfo_t finfo;
     if (apr_stat(&finfo, input_path, APR_FINFO_TYPE, r->pool) != APR_SUCCESS) {
         DEBUG_LOG(r, "Source image not found");
-        return -1; // File not found
+        return -2; // Special return code for image not found
     }
     
     DEBUG_LOG(r, "Output path: %s", output_path);
@@ -346,6 +346,10 @@ static int process_image_with_cache(request_rec *r, const image_resize_config *c
         
         if (status == 0) {
             DEBUG_LOG(r, "Image processed and cached successfully");
+        } else if (status == -2) {
+            DEBUG_LOG(r, "Source image not found, returning 404");
+            apr_thread_mutex_unlock(cache_mutex);
+            return -2; // Return special code for image not found
         } else {
             DEBUG_LOG(r, "Failed to process image for cache");
         }
@@ -436,7 +440,11 @@ static int image_resize_handler(request_rec *r) {
     }
     
     // Check cache and process image if needed
-    if (process_image_with_cache(r, cfg, req, cache_path, sizeof(cache_path)) != 0) {
+    int process_result = process_image_with_cache(r, cfg, req, cache_path, sizeof(cache_path));
+    if (process_result == -2) {
+        DEBUG_LOG(r, "Image source not found");
+        return HTTP_NOT_FOUND;
+    } else if (process_result != 0) {
         DEBUG_LOG(r, "Error processing image");
         return HTTP_INTERNAL_SERVER_ERROR;
     }
