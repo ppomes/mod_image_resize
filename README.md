@@ -10,9 +10,11 @@ Apache module for on-the-fly image resizing and compression using libvips for hi
 - **High-performance processing** using libvips (significantly faster than ImageMagick)
 - **Thread-safe operation** ideal for mpm_worker and mpm_event
 - **Multi-format support** for JPEG, PNG, GIF, and WebP
-- **Optimized compression** using mozjpeg (for JPEG) and pngquant (for PNG)
+- **Optimized compression** using a unified quality factor for all image formats
+- **Smart caching** with optional source modification time checking
 - **Flexible cache system** that preserves directory structure
 - **Aspect ratio preservation** for professional-looking resized images
+- **Proper HTTP error codes** returning 404 when source images don't exist
 
 ## Why libvips?
 
@@ -31,12 +33,13 @@ This module uses libvips instead of ImageMagick for several key reasons:
 - pngquant (for PNG optimization)
 - libimagequant-dev
 - mozjpeg (for JPG optimization)
+- cgif (for GIF support)
 
 ## Installation
 
 ### 1. Install Dependencies
 
-TODO, see Dockerfile
+See the Dockerfile for a complete list of dependencies and build instructions.
 
 ### 2. Compile and Install the Module
 
@@ -66,7 +69,7 @@ This will resize the image located at `/var/www/images/path/to/image.jpg` to dim
 ## Configuration
 
 ```apache
-<Location /images>
+<Location /resized>
     SetHandler image-resize
     
     # Source images directory
@@ -75,16 +78,34 @@ This will resize the image located at `/var/www/images/path/to/image.jpg` to dim
     # Cache directory for resized images
     ImageResizeCacheDir /var/cache/apache2/image_resize
     
-    # Compression quality (0-100)
-    ImageResizeJpegQuality 85
+    # Universal image compression quality (0-100)
+    ImageResizeQuality 75
     
-    # Cache lifetime in seconds (1 day = 86400)
+    # Cache-Control max-age in seconds (1 day = 86400)
     ImageResizeCacheMaxAge 86400
     
     # Enable debug logging (On/Off)
     ImageResizeDebug Off
+    
+    # Enable mutex for cache operations (On/Off)
+    ImageResizeMutex On
+    
+    # Check if source image is newer than cached image (On/Off)
+    ImageResizeCheckMTime Off
 </Location>
 ```
+
+### Configuration Options
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `ImageResizeSourceDir` | Directory containing source images | `/var/www/images` |
+| `ImageResizeCacheDir` | Directory for storing resized images | `/var/cache/apache2/image_resize` |
+| `ImageResizeQuality` | Universal image compression quality (0-100) | `75` |
+| `ImageResizeCacheMaxAge` | Cache-Control max-age value in seconds | `86400` (1 day) |
+| `ImageResizeDebug` | Enable debug logging | `Off` |
+| `ImageResizeMutex` | Enable mutex for cache operations | `On` |
+| `ImageResizeCheckMTime` | Check if source image is newer than cached | `Off` |
 
 ## Docker Testing
 
@@ -104,10 +125,19 @@ docker run -d -p 8080:80 \
 ## Performance Considerations
 
 - The module is thread-safe and works well with mpm_worker and mpm_event
-- Cache files are protected by a mutex to prevent race conditions
+- Cache operations can be protected by a mutex to prevent race conditions (configurable)
+- The mutex is only used when writing to the cache, not when reading
+- HTTP caching is controlled via Cache-Control and Expires headers (configurable with ImageResizeCacheMaxAge)
 - libvips is designed for high performance and minimal memory usage
+- You can disable the mutex in environments where file locking is not necessary
+- Setting `ImageResizeCheckMTime` to `On` may have a performance impact but ensures cache freshness
+
+## HTTP Status Codes
+
+- `404 Not Found`: Returned when the source image doesn't exist
+- `400 Bad Request`: Returned for invalid URLs
+- `500 Internal Server Error`: Returned for processing errors
 
 ## License
 
 This module is released under the Apache License 2.0.
-
