@@ -234,6 +234,7 @@ static int process_image(request_rec *r, const image_resize_config *cfg,
         if (vips_jpegsave(out, output_path, 
                          "Q", cfg->jpeg_quality, 
                          "optimize_coding", TRUE,
+                         "interlace", TRUE,
                          NULL)) {
             DEBUG_LOG(r, "JPEG save failed: %s", vips_error_buffer());
             vips_error_clear();
