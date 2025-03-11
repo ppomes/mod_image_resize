@@ -10,4 +10,14 @@ services:
       - image_resize_cache:/var/cache/apache2/image_resize
     restart: unless-stopped
     environment:
-      - APACHE_LOG_
+      - APACHE_LOG_LEVEL=debug  # Increase log level for debugging
+    # Uncomment to enable mpm_worker for testing concurrent connections
+    command: >
+      bash -c "a2dismod mpm_prefork &&
+               a2enmod mpm_worker &&
+               echo 'ServerName localhost' >> /etc/apache2/apache2.conf &&
+               apache2ctl -D FOREGROUND"
+
+volumes:
+  image_resize_cache:
+    driver: local
