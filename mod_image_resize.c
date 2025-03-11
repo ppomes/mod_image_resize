@@ -272,27 +272,15 @@ static int process_image(request_rec *r, const image_resize_config *cfg,
         ret = 0;
     }
     else if (strcmp(req->format, "gif") == 0) {
-        // GIF saving - check if supported in this libvips version
-        #if (VIPS_MAJOR_VERSION > 8 || (VIPS_MAJOR_VERSION == 8 && VIPS_MINOR_VERSION >= 9))
-            // GIF saving with libvips 8.9+
-            if (vips_gifsave(out, output_path, NULL)) {
-                DEBUG_LOG(r, "GIF save failed: %s", vips_error_buffer());
-                vips_error_clear();
-                g_object_unref(in);
-                g_object_unref(out);
-                return -1;
-            }
-        #else
-            // Fallback for older libvips versions
-            DEBUG_LOG(r, "GIF saving not supported in this libvips version, using PNG");
-            if (vips_pngsave(out, output_path, NULL)) {
-                DEBUG_LOG(r, "Fallback PNG save failed: %s", vips_error_buffer());
-                vips_error_clear();
-                g_object_unref(in);
-                g_object_unref(out);
-                return -1;
-            }
-        #endif
+        if (vips_gifsave(out, output_path, 
+                        "interlace", TRUE,
+                         NULL)) {
+            DEBUG_LOG(r, "GIF save failed: %s", vips_error_buffer());
+            vips_error_clear();
+            g_object_unref(in);
+            g_object_unref(out);
+            return -1;
+        }
         ret = 0;
     }
     else {
