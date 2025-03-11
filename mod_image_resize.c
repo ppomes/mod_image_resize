@@ -321,42 +321,54 @@ static int process_image_with_cache(request_rec *r, const image_resize_config *c
     
     DEBUG_LOG(r, "Cache check/write: %s", cache_path);
     
-    // Lock for cache operations
-    apr_thread_mutex_lock(cache_mutex);
-    
-    // Check if image exists in cache
+    // Check if image exists in cache (no mutex needed for reading)
     apr_finfo_t finfo;
     if (apr_stat(&finfo, cache_path, APR_FINFO_SIZE, r->pool) == APR_SUCCESS) {
         // Image already exists in cache
         DEBUG_LOG(r, "Image found in cache");
-        status = 0; // Success
+        return 0; // Success
     } 
-    else {
-        DEBUG_LOG(r, "Image not found in cache, processing...");
-        
-        // Ensure cache base directory exists
-        if (ensure_directory_exists(r->pool, cfg->cache_dir) != APR_SUCCESS) {
-            DEBUG_LOG(r, "Failed to create cache directory: %s", cfg->cache_dir);
-            apr_thread_mutex_unlock(cache_mutex);
-            return -1;
-        }
-        
-        // Process the image
-        status = process_image(r, cfg, req, cache_path);
-        
-        if (status == 0) {
-            DEBUG_LOG(r, "Image processed and cached successfully");
-        } else if (status == -2) {
-            DEBUG_LOG(r, "Source image not found, returning 404");
-            apr_thread_mutex_unlock(cache_mutex);
-            return -2; // Return special code for image not found
-        } else {
-            DEBUG_LOG(r, "Failed to process image for cache");
-        }
+    
+    DEBUG_LOG(r, "Image not found in cache, processing...");
+    
+    // Ensure cache base directory exists
+    if (ensure_directory_exists(r->pool, cfg->cache_dir) != APR_SUCCESS) {
+        DEBUG_LOG(r, "Failed to create cache directory: %s", cfg->cache_dir);
+        return -1;
     }
     
-    // Unlock
-    apr_thread_mutex_unlock(cache_mutex);
+    // Lock mutex only for cache write operations, if enabled
+    if (cfg->enable_mutex && cache_mutex) {
+        DEBUG_LOG(r, "Locking cache mutex for write operation");
+        apr_thread_mutex_lock(cache_mutex);
+    }
+    
+    // Double-check if image exists in cache after locking (another thread might have created it)
+    if (cfg->enable_mutex && apr_stat(&finfo, cache_path, APR_FINFO_SIZE, r->pool) == APR_SUCCESS) {
+        DEBUG_LOG(r, "Image created by another thread while waiting for lock");
+        if (cfg->enable_mutex && cache_mutex) {
+            apr_thread_mutex_unlock(cache_mutex);
+        }
+        return 0; // Success
+    }
+    
+    // Process the image
+    status = process_image(r, cfg, req, cache_path);
+    
+    // Unlock mutex if it was locked
+    if (cfg->enable_mutex && cache_mutex) {
+        DEBUG_LOG(r, "Unlocking cache mutex");
+        apr_thread_mutex_unlock(cache_mutex);
+    }
+    
+    if (status == 0) {
+        DEBUG_LOG(r, "Image processed and cached successfully");
+    } else if (status == -2) {
+        DEBUG_LOG(r, "Source image not found, returning 404");
+        return -2; // Return special code for image not found
+    } else {
+        DEBUG_LOG(r, "Failed to process image for cache");
+    }
     
     return status;
 }
@@ -519,6 +531,7 @@ static void *create_dir_config(apr_pool_t *p, char *arg) {
         cfg->quality = 75;                      // Default unified quality
         cfg->cache_max_age = 86400;             // Default cache lifetime (1 day)
         cfg->enable_debug = 0;                  // Debug disabled by default
+        cfg->enable_mutex = 1;                  // Mutex enabled by default
     }
     
     return cfg;
@@ -563,6 +576,12 @@ static const char *set_enable_debug(cmd_parms *cmd, void *conf, int flag) {
     return NULL;
 }
 
+static const char *set_enable_mutex(cmd_parms *cmd, void *conf, int flag) {
+    image_resize_config *cfg = (image_resize_config *)conf;
+    cfg->enable_mutex = flag;
+    return NULL;
+}
+
 // Configuration commands table
 static const command_rec image_resize_cmds[] = {
     AP_INIT_TAKE1("ImageResizeSourceDir", set_image_dir, NULL, ACCESS_CONF,
@@ -575,6 +594,8 @@ static const command_rec image_resize_cmds[] = {
                  "Cache lifetime in seconds"),
     AP_INIT_FLAG("ImageResizeDebug", set_enable_debug, NULL, ACCESS_CONF,
                 "Enable debug logging"),
+    AP_INIT_FLAG("ImageResizeMutex", set_enable_mutex, NULL, ACCESS_CONF,
+                "Enable mutex for cache operations (On/Off)"),
     { NULL }
 };
 

@@ -32,6 +32,7 @@ typedef struct {
     int quality;                 // Universal image quality (0-100)
     int cache_max_age;           // Cache lifetime in seconds
     int enable_debug;            // Enable debug logging
+    int enable_mutex;            // Enable cache mutex (0/1)
 } image_resize_config;
 
 // Request info structure
