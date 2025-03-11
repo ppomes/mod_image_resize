@@ -35,16 +35,7 @@ This module uses libvips instead of ImageMagick for several key reasons:
 
 ### 1. Install Dependencies
 
-```bash
-# On Debian/Ubuntu
-sudo apt-get update
-sudo apt-get install -y \
-    apache2-dev \
-    build-essential \
-    libvips-dev \
-    pngquant \
-    libimagequant-dev
-```
+TODO, see Dockerfile
 
 ### 2. Compile and Install the Module
 
@@ -66,7 +57,7 @@ sudo systemctl restart apache2
 Images can be resized on-the-fly using URLs with the following format:
 
 ```
-http://your-server.com/images/640x480/path/to/image.jpg
+http://your-server.com/resized/640x480/path/to/image.jpg
 ```
 
 This will resize the image located at `/var/www/images/path/to/image.jpg` to dimensions 640x480, optimizing and caching the result.
@@ -107,7 +98,7 @@ docker build -t mod_image_resize .
 
 # Run the container
 docker run -d -p 8080:80 \
-  -v $(pwd)/images:/var/www/images \
+  -v $(PWD)/images:/var/www/images \
   -v image_resize_cache:/var/cache/apache2/image_resize \
   mod_image_resize
 ```
@@ -122,7 +113,3 @@ docker run -d -p 8080:80 \
 
 This module is released under the Apache License 2.0.
 
-## Credits
-
-- libvips - High-performance image processing library
-- Apache HTTP Server Project
