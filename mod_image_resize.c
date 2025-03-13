@@ -29,20 +29,20 @@ static image_request* parse_url(request_rec *r, const char *url) {
     // Format: /WIDTHxHEIGHT/path/to/filename.ext
     int ret = regcomp(&regex, "/([0-9]+)x([0-9]+)/(.+\\.[^\\/]+)$", REG_EXTENDED);
     if (ret) {
-        DEBUG_LOG(r, "Error compiling regex");
+        ERROR_LOG(r, "Error compiling regex");
         return NULL;
     }
     
     ret = regexec(&regex, url, 4, matches, 0);
     if (ret != 0) {
-        DEBUG_LOG(r, "URL does not match expected format");
+        WARNING_LOG(r, "URL does not match expected format");
         regfree(&regex);
         return NULL;
     }
     
     req = apr_pcalloc(r->pool, sizeof(image_request));
     if (!req) {
-        DEBUG_LOG(r, "Memory allocation error for request");
+        ERROR_LOG(r, "Memory allocation error for request");
         regfree(&regex);
         return NULL;
     }
@@ -64,7 +64,7 @@ static image_request* parse_url(request_rec *r, const char *url) {
     // Extract filename with path
     req->filename = apr_pcalloc(r->pool, matches[3].rm_eo - matches[3].rm_so + 1);
     if (!req->filename) {
-        DEBUG_LOG(r, "Memory allocation error for filename");
+        ERROR_LOG(r, "Memory allocation error for filename");
         regfree(&regex);
         return NULL;
     }
@@ -140,7 +140,7 @@ static int ensure_parent_directory_exists(request_rec *r, const char *file_path)
         if (finfo.filetype == APR_DIR) {
             return 0; // Directory already exists
         }
-        DEBUG_LOG(r, "Path exists but is not a directory: %s", dir_path);
+        ERROR_LOG(r, "Path exists but is not a directory: %s", dir_path);
         return -1;
     }
     
@@ -154,14 +154,14 @@ static int ensure_parent_directory_exists(request_rec *r, const char *file_path)
                                            r->pool);
     
     if (rv != APR_SUCCESS) {
-        DEBUG_LOG(r, "Failed to create parent directory: %s (code: %d)", 
+        ERROR_LOG(r, "Failed to create parent directory: %s (code: %d)", 
                  dir_path, rv);
         return -1;
     }
     
     // Ensure permissions are correct for Apache
     if (chown(dir_path, geteuid(), getegid()) != 0) {
-        DEBUG_LOG(r, "Warning: Unable to change directory owner: %s", 
+        WARNING_LOG(r, "Unable to change directory owner: %s", 
                  dir_path);
     }
     
@@ -177,7 +177,7 @@ static int process_image(request_rec *r, const image_resize_config *cfg,
     
     // Check if libvips is initialized
     if (!libvips_initialized) {
-        DEBUG_LOG(r, "LibVips not initialized, cannot process image");
+        ERROR_LOG(r, "LibVips not initialized, cannot process image");
         return -1;
     }
     
@@ -188,7 +188,7 @@ static int process_image(request_rec *r, const image_resize_config *cfg,
     // Check if source image exists
     apr_finfo_t finfo;
     if (apr_stat(&finfo, input_path, APR_FINFO_TYPE, r->pool) != APR_SUCCESS) {
-        DEBUG_LOG(r, "Source image not found");
+        WARNING_LOG(r, "Source image not found: %s", input_path);
         return -2; // Special return code for image not found
     }
     
@@ -196,18 +196,18 @@ static int process_image(request_rec *r, const image_resize_config *cfg,
     
     // Ensure parent directory exists before processing
     if (ensure_parent_directory_exists(r, output_path) != 0) {
-        DEBUG_LOG(r, "Failed to create parent directory for cache file");
+        ERROR_LOG(r, "Failed to create parent directory for cache file");
         return -1;
     }
     
     // Load the image
     if (!(in = vips_image_new_from_file(input_path, NULL))) {
-        DEBUG_LOG(r, "Failed to load image: %s", vips_error_buffer());
+        ERROR_LOG(r, "Failed to load image: %s", vips_error_buffer());
         vips_error_clear();
         return -1;
     }
     
-    DEBUG_LOG(r, "Image loaded, original size: %dx%d", 
+    INFO_LOG(r, "Image loaded, original size: %dx%d", 
              vips_image_get_width(in), vips_image_get_height(in));
     
     // Calculate scale factors preserving aspect ratio
@@ -219,13 +219,13 @@ static int process_image(request_rec *r, const image_resize_config *cfg,
     
     // Resize the image
     if (vips_resize(in, &out, scale, NULL)) {
-        DEBUG_LOG(r, "Resize failed: %s", vips_error_buffer());
+        ERROR_LOG(r, "Resize failed: %s", vips_error_buffer());
         vips_error_clear();
         g_object_unref(in);
         return -1;
     }
     
-    DEBUG_LOG(r, "Image resized to: %dx%d", 
+    INFO_LOG(r, "Image resized to: %dx%d", 
              vips_image_get_width(out), vips_image_get_height(out));
     
     // Save according to format with appropriate compression
@@ -236,7 +236,7 @@ static int process_image(request_rec *r, const image_resize_config *cfg,
                          "optimize_coding", TRUE,
                          "interlace", TRUE,
                          NULL)) {
-            DEBUG_LOG(r, "JPEG save failed: %s", vips_error_buffer());
+            ERROR_LOG(r, "JPEG save failed: %s", vips_error_buffer());
             vips_error_clear();
             g_object_unref(in);
             g_object_unref(out);
@@ -252,7 +252,7 @@ static int process_image(request_rec *r, const image_resize_config *cfg,
                         "compression", 9,          // Maximum compression
                         "interlace", TRUE,         // Progressive loading
                         NULL)) {
-            DEBUG_LOG(r, "PNG save failed: %s", vips_error_buffer());
+            ERROR_LOG(r, "PNG save failed: %s", vips_error_buffer());
             vips_error_clear();
             g_object_unref(in);
             g_object_unref(out);
@@ -263,7 +263,7 @@ static int process_image(request_rec *r, const image_resize_config *cfg,
     else if (strcmp(req->format, "webp") == 0) {
         // WebP saving with unified quality
         if (vips_webpsave(out, output_path, "Q", cfg->quality, NULL)) {
-            DEBUG_LOG(r, "WebP save failed: %s", vips_error_buffer());
+            ERROR_LOG(r, "WebP save failed: %s", vips_error_buffer());
             vips_error_clear();
             g_object_unref(in);
             g_object_unref(out);
@@ -275,7 +275,7 @@ static int process_image(request_rec *r, const image_resize_config *cfg,
         if (vips_gifsave(out, output_path, 
                         "interlace", TRUE,
                          NULL)) {
-            DEBUG_LOG(r, "GIF save failed: %s", vips_error_buffer());
+            ERROR_LOG(r, "GIF save failed: %s", vips_error_buffer());
             vips_error_clear();
             g_object_unref(in);
             g_object_unref(out);
@@ -284,10 +284,10 @@ static int process_image(request_rec *r, const image_resize_config *cfg,
         ret = 0;
     }
     else {
-        DEBUG_LOG(r, "Unsupported format: %s", req->format);
+        WARNING_LOG(r, "Unsupported format: %s, defaulting to JPEG", req->format);
         // Default to JPEG
         if (vips_jpegsave(out, output_path, "Q", cfg->quality, NULL)) {
-            DEBUG_LOG(r, "Default JPEG save failed: %s", vips_error_buffer());
+            ERROR_LOG(r, "Default JPEG save failed: %s", vips_error_buffer());
             vips_error_clear();
             g_object_unref(in);
             g_object_unref(out);
@@ -302,9 +302,9 @@ static int process_image(request_rec *r, const image_resize_config *cfg,
     
     // Check output file size
     if (apr_stat(&finfo, output_path, APR_FINFO_SIZE, r->pool) == APR_SUCCESS) {
-        DEBUG_LOG(r, "Output file size: %" APR_OFF_T_FMT " bytes", finfo.size);
+        INFO_LOG(r, "Output file size: %" APR_OFF_T_FMT " bytes", finfo.size);
     } else {
-        DEBUG_LOG(r, "Unable to get output file size");
+        WARNING_LOG(r, "Unable to get output file size");
     }
     
     return ret;
@@ -338,19 +338,19 @@ static int process_image_with_cache(request_rec *r, const image_resize_config *c
             if (apr_stat(&source_finfo, source_path, APR_FINFO_MTIME, r->pool) == APR_SUCCESS) {
                 // Compare modification times
                 if (source_finfo.mtime > finfo.mtime) {
-                    DEBUG_LOG(r, "Source image is newer than cached image, regenerating");
+                    INFO_LOG(r, "Source image is newer than cached image, regenerating");
                     // Continue to processing - don't return here
                 } else {
-                    DEBUG_LOG(r, "Image found in cache and is up-to-date");
+                    INFO_LOG(r, "Image found in cache and is up-to-date");
                     return 0; // Success - cache is valid
                 }
             } else {
-                DEBUG_LOG(r, "Unable to stat source image, using cached version");
+                WARNING_LOG(r, "Unable to stat source image, using cached version");
                 return 0; // Success - use cached version
             }
         } else {
             // No mtime check needed
-            DEBUG_LOG(r, "Image found in cache");
+            INFO_LOG(r, "Image found in cache");
             return 0; // Success
         }
     } else {
@@ -360,7 +360,7 @@ static int process_image_with_cache(request_rec *r, const image_resize_config *c
     
     // Ensure cache base directory exists
     if (ensure_directory_exists(r->pool, cfg->cache_dir) != APR_SUCCESS) {
-        DEBUG_LOG(r, "Failed to create cache directory: %s", cfg->cache_dir);
+        ERROR_LOG(r, "Failed to create cache directory: %s", cfg->cache_dir);
         return -1;
     }
     
@@ -384,17 +384,17 @@ static int process_image_with_cache(request_rec *r, const image_resize_config *c
             if (apr_stat(&source_finfo, source_path, APR_FINFO_MTIME, r->pool) == APR_SUCCESS) {
                 // Compare modification times
                 if (source_finfo.mtime > finfo.mtime) {
-                    DEBUG_LOG(r, "Source image is newer than image created by another thread, regenerating");
+                    INFO_LOG(r, "Source image is newer than image created by another thread, regenerating");
                     // Continue to processing - don't return here
                 } else {
-                    DEBUG_LOG(r, "Image created by another thread is up-to-date");
+                    INFO_LOG(r, "Image created by another thread is up-to-date");
                     if (cfg->enable_mutex && cache_mutex) {
                         apr_thread_mutex_unlock(cache_mutex);
                     }
                     return 0; // Success - cache is valid
                 }
             } else {
-                DEBUG_LOG(r, "Unable to stat source image, using cached version from another thread");
+                WARNING_LOG(r, "Unable to stat source image, using cached version from another thread");
                 if (cfg->enable_mutex && cache_mutex) {
                     apr_thread_mutex_unlock(cache_mutex);
                 }
@@ -402,7 +402,7 @@ static int process_image_with_cache(request_rec *r, const image_resize_config *c
             }
         } else {
             // No mtime check needed
-            DEBUG_LOG(r, "Image created by another thread while waiting for lock");
+            INFO_LOG(r, "Image created by another thread while waiting for lock");
             if (cfg->enable_mutex && cache_mutex) {
                 apr_thread_mutex_unlock(cache_mutex);
             }
@@ -420,12 +420,12 @@ static int process_image_with_cache(request_rec *r, const image_resize_config *c
     }
     
     if (status == 0) {
-        DEBUG_LOG(r, "Image processed and cached successfully");
+        INFO_LOG(r, "Image processed and cached successfully");
     } else if (status == -2) {
-        DEBUG_LOG(r, "Source image not found, returning 404");
+        WARNING_LOG(r, "Source image not found, returning 404");
         return -2; // Return special code for image not found
     } else {
-        DEBUG_LOG(r, "Failed to process image for cache");
+        ERROR_LOG(r, "Failed to process image for cache");
     }
     
     return status;
@@ -500,36 +500,36 @@ static int image_resize_handler(request_rec *r) {
     // Get module configuration
     cfg = (image_resize_config*) ap_get_module_config(r->per_dir_config, &image_resize_module);
     
-    DEBUG_LOG(r, "New request: %s", r->uri);
+    INFO_LOG(r, "New request: %s", r->uri);
     
     // Parse URL
     req = parse_url(r, r->uri);
     if (!req) {
-        DEBUG_LOG(r, "Invalid URL: %s", r->uri);
+        ERROR_LOG(r, "Invalid URL: %s", r->uri);
         return HTTP_BAD_REQUEST;
     }
     
     // Check cache and process image if needed
     int process_result = process_image_with_cache(r, cfg, req, cache_path, sizeof(cache_path));
     if (process_result == -2) {
-        DEBUG_LOG(r, "Image source not found");
+        WARNING_LOG(r, "Image source not found");
         return HTTP_NOT_FOUND;
     } else if (process_result != 0) {
-        DEBUG_LOG(r, "Error processing image");
+        ERROR_LOG(r, "Error processing image");
         return HTTP_INTERNAL_SERVER_ERROR;
     }
     
     // Open cached file
     DEBUG_LOG(r, "Opening cached file: %s", cache_path);
     if ((rv = apr_file_open(&fd, cache_path, APR_READ, APR_OS_DEFAULT, r->pool)) != APR_SUCCESS) {
-        DEBUG_LOG(r, "Cannot open cached file: %s", 
+        ERROR_LOG(r, "Cannot open cached file: %s", 
                  apr_strerror(rv, cache_path, 100));
         return HTTP_NOT_FOUND;
     }
     
     // Get file size
     if ((rv = apr_file_info_get(&finfo, APR_FINFO_SIZE, fd)) != APR_SUCCESS) {
-        DEBUG_LOG(r, "Cannot get file size: %s",
+        ERROR_LOG(r, "Cannot get file size: %s",
                  apr_strerror(rv, cache_path, 100));
         apr_file_close(fd);
         return HTTP_INTERNAL_SERVER_ERROR;
@@ -588,7 +588,6 @@ static void *create_dir_config(apr_pool_t *p, char *arg) {
         cfg->cache_dir = "/var/cache/apache2/image_resize"; // Default cache
         cfg->quality = 75;                      // Default unified quality
         cfg->cache_max_age = 86400;             // Default cache lifetime (1 day)
-        cfg->enable_debug = 0;                  // Debug disabled by default
         cfg->enable_mutex = 1;                  // Mutex enabled by default
         cfg->check_source_mtime = 0;            // Source mtime check disabled by default
     }
@@ -629,12 +628,6 @@ static const char *set_cache_max_age(cmd_parms *cmd, void *conf, const char *arg
     return NULL;
 }
 
-static const char *set_enable_debug(cmd_parms *cmd, void *conf, int flag) {
-    image_resize_config *cfg = (image_resize_config *)conf;
-    cfg->enable_debug = flag;
-    return NULL;
-}
-
 static const char *set_enable_mutex(cmd_parms *cmd, void *conf, int flag) {
     image_resize_config *cfg = (image_resize_config *)conf;
     cfg->enable_mutex = flag;
@@ -657,8 +650,6 @@ static const command_rec image_resize_cmds[] = {
                  "Universal image compression quality (0-100)"),
     AP_INIT_TAKE1("ImageResizeCacheMaxAge", set_cache_max_age, NULL, ACCESS_CONF,
                  "Cache lifetime in seconds"),
-    AP_INIT_FLAG("ImageResizeDebug", set_enable_debug, NULL, ACCESS_CONF,
-                "Enable debug logging"),
     AP_INIT_FLAG("ImageResizeMutex", set_enable_mutex, NULL, ACCESS_CONF,
                 "Enable mutex for cache operations (On/Off)"),
     AP_INIT_FLAG("ImageResizeCheckMTime", set_check_source_mtime, NULL, ACCESS_CONF,

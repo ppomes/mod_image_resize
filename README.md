@@ -84,9 +84,6 @@ This will resize the image located at `/var/www/images/path/to/image.jpg` to dim
     # Cache-Control max-age in seconds (1 day = 86400)
     ImageResizeCacheMaxAge 86400
     
-    # Enable debug logging (On/Off)
-    ImageResizeDebug Off
-    
     # Enable mutex for cache operations (On/Off)
     ImageResizeMutex On
     
@@ -103,7 +100,6 @@ This will resize the image located at `/var/www/images/path/to/image.jpg` to dim
 | `ImageResizeCacheDir` | Directory for storing resized images | `/var/cache/apache2/image_resize` |
 | `ImageResizeQuality` | Universal image compression quality (0-100) | `75` |
 | `ImageResizeCacheMaxAge` | Cache-Control max-age value in seconds | `86400` (1 day) |
-| `ImageResizeDebug` | Enable debug logging | `Off` |
 | `ImageResizeMutex` | Enable mutex for cache operations | `On` |
 | `ImageResizeCheckMTime` | Check if source image is newer than cached | `Off` |
 
