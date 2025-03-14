@@ -37,24 +37,62 @@ This module uses libvips instead of ImageMagick for several key reasons:
 
 ## Installation
 
-### 1. Install Dependencies
+### Option 1: Manual Compilation
+
+#### 1. Install Dependencies
 
 See the Dockerfile for a complete list of dependencies and build instructions.
 
-### 2. Compile and Install the Module
+#### 2. Compile and Install the Module
 
 ```bash
 make
 sudo make install
 ```
 
-### 3. Configure Apache
+#### 3. Configure Apache
 
 ```bash
 sudo cp mod_image_resize.conf /etc/apache2/conf-available/
 sudo a2enconf mod_image_resize
 sudo systemctl restart apache2
 ```
+
+### Option 2: Debian/Ubuntu Package (Tested on Ubuntu 24.04)
+
+#### 1. Install Build Dependencies
+
+```bash
+sudo apt-get update
+sudo apt-get install debhelper devscripts build-essential apache2-dev \
+  cmake git nasm pkg-config libpng-dev libimagequant-dev pngquant \
+  libarchive-dev libglib2.0-dev libexpat-dev libfftw3-dev libexif-dev \
+  libtiff-dev libwebp-dev libgsf-1-dev liblcms2-dev libpango1.0-dev \
+  librsvg2-dev meson ninja-build patchelf
+```
+
+#### 2. Build the Package
+
+```bash
+dpkg-buildpackage -us -uc -b
+```
+
+This will create a `.deb` package in the parent directory.
+
+#### 3. Install the Package
+
+```bash
+sudo dpkg -i ../mod-image-resize_*.deb
+sudo apt-get install -f  # To resolve any missing dependencies
+```
+
+The package includes:
+- The Apache module installed to `/usr/lib/apache2/modules/`
+- Custom compiled libvips with MozJPEG support
+- MozJPEG optimized JPEG library in `/opt/mozjpeg/lib/`
+- Integrated cgif library for efficient GIF support
+- Apache configuration in `/etc/apache2/conf-available/`
+- Cache directory in `/var/cache/apache2/image_resize/`
 
 ## Usage
 
