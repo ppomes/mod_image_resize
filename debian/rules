@@ -106,6 +106,7 @@ override_dh_auto_build:
 		-Wc,`pkg-config --cflags glib-2.0` \
 		-Wc,`pkg-config --cflags gobject-2.0` \
 		-Wl,-L$(CURDIR)/debian/mod-image-resize/usr/lib \
+		-Wl,-L$(CURDIR)/debian/mod-image-resize/usr/lib/x86_64-linux-gnu \
 		-Wl,-lvips \
 		-Wl,-lvips-cpp \
 		-Wl,-L$(CURDIR)/debian/mod-image-resize/opt/mozjpeg/lib \
