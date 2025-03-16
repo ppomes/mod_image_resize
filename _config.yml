@@ -2,3 +2,7 @@ theme: jekyll-theme-cayman
 title: mod_image_resize
 description: Apache module for on-the-fly image resizing and compression using libvips
 show_downloads: false
+url: "https://ppomes.github.io"
+baseurl: "/mod_image_resize"
+plugins:
+  - jekyll-sitemap

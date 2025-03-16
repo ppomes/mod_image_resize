@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://ppomes.github.io/mod_image_resize/sitemap.xml
