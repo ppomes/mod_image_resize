@@ -1,11 +1,16 @@
 #!/usr/bin/make -f
+
+# Detect arch
+DEB_HOST_MULTIARCH ?= $(shell dpkg-architecture -qDEB_HOST_MULTIARCH)
+DEB_HOST_ARCH ?= $(shell dpkg-architecture -qDEB_HOST_ARCH)
+
 %:
 	dh $@
 
 override_dh_auto_configure:
 	# Dependencies build dir
 	mkdir -p debian/build-deps
-	
+
 	# MozJPEG
 	cd debian/build-deps && \
 	git clone https://github.com/mozilla/mozjpeg.git && \
@@ -16,7 +21,7 @@ override_dh_auto_configure:
 	  -DCMAKE_C_FLAGS="-fPIC" \
 	  -DCMAKE_CXX_FLAGS="-fPIC" \
 	  -DENABLE_SHARED=TRUE \
-	  -DPNG_LIBRARY=/usr/lib/x86_64-linux-gnu/libpng.so && \
+	  -DPNG_LIBRARY=/usr/lib/$(DEB_HOST_MULTIARCH)/libpng.so && \
 	make -j$(nproc) && \
 	make install
 
@@ -39,40 +44,40 @@ override_dh_auto_configure:
 	cd cgif && \
 	git checkout v0.5.0 && \
 	meson setup build \
-	  --prefix=$(CURDIR)/debian/mod-image-resize/usr \
+	  --prefix=$(CURDIR)/debian/mod-image-resize/opt/cgif \
 	  --buildtype=release \
 	  --default-library=shared && \
 	cd build && \
 	ninja && \
 	ninja install
-	
+
 	# pkg-config for cgif
-	mkdir -p $(CURDIR)/debian/mod-image-resize/usr/lib/pkgconfig/
-	echo 'prefix=/usr' > $(CURDIR)/debian/mod-image-resize/usr/lib/pkgconfig/cgif.pc
-	echo 'exec_prefix=$${prefix}' >> $(CURDIR)/debian/mod-image-resize/usr/lib/pkgconfig/cgif.pc
-	echo 'libdir=$${exec_prefix}/lib' >> $(CURDIR)/debian/mod-image-resize/usr/lib/pkgconfig/cgif.pc
-	echo 'includedir=$${prefix}/include' >> $(CURDIR)/debian/mod-image-resize/usr/lib/pkgconfig/cgif.pc
-	echo '' >> $(CURDIR)/debian/mod-image-resize/usr/lib/pkgconfig/cgif.pc
-	echo 'Name: cgif' >> $(CURDIR)/debian/mod-image-resize/usr/lib/pkgconfig/cgif.pc
-	echo 'Description: C GIF encoder' >> $(CURDIR)/debian/mod-image-resize/usr/lib/pkgconfig/cgif.pc
-	echo 'Version: 0.5.0' >> $(CURDIR)/debian/mod-image-resize/usr/lib/pkgconfig/cgif.pc
-	echo 'Libs: -L$${libdir} -lcgif' >> $(CURDIR)/debian/mod-image-resize/usr/lib/pkgconfig/cgif.pc
-	echo 'Cflags: -I$${includedir}' >> $(CURDIR)/debian/mod-image-resize/usr/lib/pkgconfig/cgif.pc
+	mkdir -p $(CURDIR)/debian/mod-image-resize/opt/cgif/lib/pkgconfig/
+	echo 'prefix=/opt/cgif' > $(CURDIR)/debian/mod-image-resize/opt/cgif/lib/pkgconfig/cgif.pc
+	echo 'exec_prefix=$${prefix}' >> $(CURDIR)/debian/mod-image-resize/opt/cgif/lib/pkgconfig/cgif.pc
+	echo 'libdir=$${exec_prefix}/lib' >> $(CURDIR)/debian/mod-image-resize/opt/cgif/lib/pkgconfig/cgif.pc
+	echo 'includedir=$${prefix}/include' >> $(CURDIR)/debian/mod-image-resize/opt/cgif/lib/pkgconfig/cgif.pc
+	echo '' >> $(CURDIR)/debian/mod-image-resize/opt/cgif/lib/pkgconfig/cgif.pc
+	echo 'Name: cgif' >> $(CURDIR)/debian/mod-image-resize/opt/cgif/lib/pkgconfig/cgif.pc
+	echo 'Description: C GIF encoder' >> $(CURDIR)/debian/mod-image-resize/opt/cgif/lib/pkgconfig/cgif.pc
+	echo 'Version: 0.5.0' >> $(CURDIR)/debian/mod-image-resize/opt/cgif/lib/pkgconfig/cgif.pc
+	echo 'Libs: -L$${libdir} -lcgif' >> $(CURDIR)/debian/mod-image-resize/opt/cgif/lib/pkgconfig/cgif.pc
+	echo 'Cflags: -I$${includedir}' >> $(CURDIR)/debian/mod-image-resize/opt/cgif/lib/pkgconfig/cgif.pc
 
 	# libvips with MozJPEG and cgif
 	cd debian/build-deps && \
 	git clone https://github.com/libvips/libvips.git && \
 	cd libvips && \
 	git checkout v8.16.0 && \
-	PKG_CONFIG_PATH=$(CURDIR)/debian/mod-image-resize/opt/mozjpeg/lib/pkgconfig:$(CURDIR)/debian/mod-image-resize/usr/lib/pkgconfig:/usr/lib/pkgconfig \
-	LDFLAGS="-L$(CURDIR)/debian/mod-image-resize/opt/mozjpeg/lib -L$(CURDIR)/debian/mod-image-resize/usr/lib" \
-	CPPFLAGS="-I$(CURDIR)/debian/mod-image-resize/opt/mozjpeg/include -I$(CURDIR)/debian/mod-image-resize/usr/include" \
+	PKG_CONFIG_PATH=$(CURDIR)/debian/mod-image-resize/opt/mozjpeg/lib/pkgconfig:$(CURDIR)/debian/mod-image-resize/opt/cgif/lib/pkgconfig:/usr/lib/pkgconfig \
+	LDFLAGS="-L$(CURDIR)/debian/mod-image-resize/opt/mozjpeg/lib -L$(CURDIR)/debian/mod-image-resize/opt/cgif/lib" \
+	CPPFLAGS="-I$(CURDIR)/debian/mod-image-resize/opt/mozjpeg/include -I$(CURDIR)/debian/mod-image-resize/opt/cgif/include" \
 	meson setup build \
-	  --prefix=$(CURDIR)/debian/mod-image-resize/usr \
+	  --prefix=$(CURDIR)/debian/mod-image-resize/opt/vips \
 	  --buildtype=release \
 	  --default-library=shared \
 	  -Djpeg=enabled \
-	  -Dcgif=disabled \
+	  -Dcgif=enabled \
 	  -Dpdfium=disabled \
 	  -Dmagick=disabled \
 	  -Dquantizr=enabled \
@@ -84,38 +89,39 @@ override_dh_auto_configure:
 
 override_dh_auto_build:
 	# pkg-config for vips
-	mkdir -p $(CURDIR)/debian/mod-image-resize/usr/lib/pkgconfig/
-	echo 'prefix=/usr' > $(CURDIR)/debian/mod-image-resize/usr/lib/pkgconfig/vips.pc
-	echo 'exec_prefix=$${prefix}' >> $(CURDIR)/debian/mod-image-resize/usr/lib/pkgconfig/vips.pc
-	echo 'libdir=$${exec_prefix}/lib' >> $(CURDIR)/debian/mod-image-resize/usr/lib/pkgconfig/vips.pc
-	echo 'includedir=$${prefix}/include' >> $(CURDIR)/debian/mod-image-resize/usr/lib/pkgconfig/vips.pc
-	echo '' >> $(CURDIR)/debian/mod-image-resize/usr/lib/pkgconfig/vips.pc
-	echo 'Name: vips' >> $(CURDIR)/debian/mod-image-resize/usr/lib/pkgconfig/vips.pc
-	echo 'Description: VIPS Image Processing Library' >> $(CURDIR)/debian/mod-image-resize/usr/lib/pkgconfig/vips.pc
-	echo 'Version: 8.16.0' >> $(CURDIR)/debian/mod-image-resize/usr/lib/pkgconfig/vips.pc
-	echo 'Requires: glib-2.0 gobject-2.0 gio-2.0 fftw3 lcms2' >> $(CURDIR)/debian/mod-image-resize/usr/lib/pkgconfig/vips.pc
-	echo 'Libs: -L$${libdir} -lvips' >> $(CURDIR)/debian/mod-image-resize/usr/lib/pkgconfig/vips.pc
-	echo 'Cflags: -I$${includedir}' >> $(CURDIR)/debian/mod-image-resize/usr/lib/pkgconfig/vips.pc
+	mkdir -p $(CURDIR)/debian/mod-image-resize/opt/vips/lib/pkgconfig/
+	echo 'prefix=/opt/vips' > $(CURDIR)/debian/mod-image-resize/opt/vips/lib/pkgconfig/vips.pc
+	echo 'exec_prefix=$${prefix}' >> $(CURDIR)/debian/mod-image-resize/opt/vips/lib/pkgconfig/vips.pc
+	echo 'libdir=$${exec_prefix}/lib' >> $(CURDIR)/debian/mod-image-resize/opt/vips/lib/pkgconfig/vips.pc
+	echo 'includedir=$${prefix}/include' >> $(CURDIR)/debian/mod-image-resize/opt/vips/lib/pkgconfig/vips.pc
+	echo '' >> $(CURDIR)/debian/mod-image-resize/opt/vips/lib/pkgconfig/vips.pc
+	echo 'Name: vips' >> $(CURDIR)/debian/mod-image-resize/opt/vips/lib/pkgconfig/vips.pc
+	echo 'Description: VIPS Image Processing Library' >> $(CURDIR)/debian/mod-image-resize/opt/vips/lib/pkgconfig/vips.pc
+	echo 'Version: 8.16.0' >> $(CURDIR)/debian/mod-image-resize/opt/vips/lib/pkgconfig/vips.pc
+	echo 'Requires: glib-2.0 gobject-2.0 gio-2.0 fftw3 lcms2' >> $(CURDIR)/debian/mod-image-resize/opt/vips/lib/pkgconfig/vips.pc
+	echo 'Libs: -L$${libdir} -lvips' >> $(CURDIR)/debian/mod-image-resize/opt/vips/lib/pkgconfig/vips.pc
+	echo 'Cflags: -I$${includedir}' >> $(CURDIR)/debian/mod-image-resize/opt/vips/lib/pkgconfig/vips.pc
 
 	# glib include path
 	GLIB_INCLUDE_PATH=`pkg-config --cflags glib-2.0`; \
 	GOBJECT_INCLUDE_PATH=`pkg-config --cflags gobject-2.0`; \
 
+	# Compile mod_image_resize.c with appropriate RPATHs
 	apxs -c \
-		-Wc,-I$(CURDIR)/debian/mod-image-resize/usr/include \
+		-Wc,-I$(CURDIR)/debian/mod-image-resize/opt/vips/include \
 		-Wc,`pkg-config --cflags glib-2.0` \
 		-Wc,`pkg-config --cflags gobject-2.0` \
-		-Wl,-L$(CURDIR)/debian/mod-image-resize/usr/lib \
-		-Wl,-L$(CURDIR)/debian/mod-image-resize/usr/lib/x86_64-linux-gnu \
+		-Wl,-L$(CURDIR)/debian/build-deps/libvips/build/libvips/ \
+		-Wl,-L$(CURDIR)/debian/build-deps/libvips/build/cplusplus \
 		-Wl,-lvips \
 		-Wl,-lvips-cpp \
 		-Wl,-L$(CURDIR)/debian/mod-image-resize/opt/mozjpeg/lib \
 		-Wl,-ljpeg \
-		-Wl,-L$(CURDIR)/debian/mod-image-resize/usr/lib \
+		-Wl,-L$(CURDIR)/debian/build-deps/cgif/build/ \
 		-Wl,-lcgif \
 		-Wl,`pkg-config --libs glib-2.0` \
 		-Wl,`pkg-config --libs gobject-2.0` \
-		-Wl,-rpath=/usr/lib:/opt/mozjpeg/lib \
+		-Wl,-rpath=/opt/vips/lib:/opt/mozjpeg/lib:/opt/cgif/lib \
 		mod_image_resize.c
 
 override_dh_auto_test:
@@ -125,23 +131,37 @@ override_dh_auto_install:
 	mkdir -p debian/mod-image-resize/etc/apache2/conf-available/
 	mkdir -p debian/mod-image-resize/var/cache/apache2/image_resize
 	mkdir -p debian/mod-image-resize/opt/mozjpeg/lib/
-	mkdir -p debian/mod-image-resize/usr/lib/
+	mkdir -p debian/mod-image-resize/opt/cgif/lib/
+	mkdir -p debian/mod-image-resize/opt/vips/lib/
 
 	install -m 644 .libs/mod_image_resize.so debian/mod-image-resize/usr/lib/apache2/modules/
 
 	install -m 644 mod_image_resize.conf debian/mod-image-resize/etc/apache2/conf-available/
 
 	cp -a debian/build-deps/mozjpeg/libjpeg.so* debian/mod-image-resize/opt/mozjpeg/lib/
-
-	find debian/build-deps/libvips -name "libvips*.so*" -exec cp -a {} debian/mod-image-resize/usr/lib/ \;
-
-	find debian/build-deps/cgif -name "libcgif*.so*" -exec cp -a {} debian/mod-image-resize/usr/lib/ \;
+	cp -a debian/build-deps/libvips/build/libvips/libvips.so* debian/mod-image-resize/opt/vips/lib/
+	cp -a debian/build-deps/libvips/build/cplusplus/libvips-cpp.so* debian/mod-image-resize/opt/vips/lib/
+	cp -a debian/build-deps/cgif/build/libcgif.so* debian/mod-image-resize/opt/cgif/lib/
 
 	find debian/mod-image-resize -name "*.symbols" -delete
 	find debian/mod-image-resize -name "*.p" -type d -exec rm -rf {} \; 2>/dev/null || true
 
-	# To be fixed in a nicer way
-	which patchelf > /dev/null || apt-get -y install patchelf
-	patchelf --set-rpath /opt/mozjpeg/lib debian/mod-image-resize/usr/lib/libvips.so.42.18.0
-	patchelf --set-rpath /opt/mozjpeg/lib debian/mod-image-resize/usr/lib/libvips-cpp.so.42.18.0
-     
+	# Fix RPATH for mod_image_resize.so
+	if [ -x /usr/bin/patchelf ] || apt-get -y install patchelf ; then \
+		patchelf --set-rpath /opt/vips/lib:/opt/mozjpeg/lib:/opt/cgif/lib debian/mod-image-resize/usr/lib/apache2/modules/mod_image_resize.so ; \
+		patchelf --set-rpath /opt/mozjpeg/lib:/opt/cgif/lib debian/mod-image-resize/opt/vips/lib/libvips.so.* ; \
+		patchelf --set-rpath /opt/mozjpeg/lib:/opt/cgif/lib debian/mod-image-resize/opt/vips/lib/libvips-cpp.so.* ; \
+	fi
+
+# Add this to disable dwz
+override_dh_dwz:
+	echo "Skipping dwz step"
+
+# Add this to fix dpkg-shlibdeps issue
+override_dh_shlibdeps:
+	dh_shlibdeps -l$(CURDIR)/debian/mod-image-resize/opt/vips/lib:$(CURDIR)/debian/mod-image-resize/opt/mozjpeg/lib:$(CURDIR)/debian/mod-image-resize/opt/cgif/lib
+
+# ARM additional settings
+ifneq (,$(filter arm% aarch64,$(DEB_HOST_ARCH)))
+    # Adjust if needed
+endif
