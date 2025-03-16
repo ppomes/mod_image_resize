@@ -70,7 +70,7 @@ override_dh_auto_configure:
 	cd libvips && \
 	git checkout v8.16.0 && \
 	PKG_CONFIG_PATH=$(CURDIR)/debian/mod-image-resize/opt/mozjpeg/lib/pkgconfig:$(CURDIR)/debian/mod-image-resize/opt/cgif/lib/pkgconfig:/usr/lib/pkgconfig \
-	LDFLAGS="-L$(CURDIR)/debian/mod-image-resize/opt/mozjpeg/lib -L$(CURDIR)/debian/mod-image-resize/opt/cgif/lib" \
+	LDFLAGS="-L$(CURDIR)/debian/mod-image-resize/opt/mozjpeg/lib -L$(CURDIR)/debian/mod-image-resize/opt/cgif/lib/ -L$(CURDIR)/debian/mod-image-resize/opt/cgif/lib/$(DEB_HOST_MULTIARCH)" \
 	CPPFLAGS="-I$(CURDIR)/debian/mod-image-resize/opt/mozjpeg/include -I$(CURDIR)/debian/mod-image-resize/opt/cgif/include" \
 	meson setup build \
 	  --prefix=$(CURDIR)/debian/mod-image-resize/opt/vips \
