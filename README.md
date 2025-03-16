@@ -7,7 +7,7 @@ Apache module for on-the-fly image resizing and compression using libvips for hi
 ## Features
 
 - **On-the-fly image resizing** via URL parameters
-- **High-performance processing** using libvips (significantly faster than ImageMagick)
+- **High-performance processing** using libvips
 - **Thread-safe operation** ideal for mpm_worker and mpm_event
 - **Multi-format support** for JPEG, PNG, GIF, and WebP
 - **Optimized compression** using a unified quality factor for all image formats
@@ -18,13 +18,13 @@ Apache module for on-the-fly image resizing and compression using libvips for hi
 
 ## Why libvips?
 
-This module uses libvips instead of ImageMagick for several key reasons:
+This module uses libvips for several key advantages:
 
-1. **Performance**: libvips is typically 4-8x faster than ImageMagick
-2. **Memory efficiency**: Uses significantly less memory, especially for large images
-3. **Thread-safety**: Designed from the ground up to be thread-safe
-4. **Stability**: No segmentation faults or race conditions in multi-threaded environments
-5. **Modern design**: Clean, well-documented API
+1. **Exceptional performance**: Process images rapidly with minimal resource usage
+2. **Memory efficiency**: Optimized streaming architecture that minimizes memory footprint
+3. **Thread-safety**: Designed from the ground up for concurrent operations
+4. **Stability**: Robust behavior in multi-threaded environments
+5. **Modern design**: Clean, well-documented API for easy integration
 
 ## Requirements
 
@@ -162,7 +162,7 @@ docker run -d -p 8080:80 \
 - Cache operations can be protected by a mutex to prevent race conditions (configurable)
 - The mutex is only used when writing to the cache, not when reading
 - HTTP caching is controlled via Cache-Control and Expires headers (configurable with ImageResizeCacheMaxAge)
-- libvips is designed for high performance and minimal memory usage
+- libvips is optimized for high performance and minimal memory usage
 - You can disable the mutex in environments where file locking is not necessary
 - Setting `ImageResizeCheckMTime` to `On` may have a performance impact but ensures cache freshness
 
