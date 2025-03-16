@@ -13,8 +13,7 @@ Apache module for on-the-fly image resizing and compression using libvips for hi
 - **Optimized compression** using a unified quality factor for all image formats
 - **Smart caching** with optional source modification time checking
 - **Flexible cache system** that preserves directory structure
-- **Aspect ratio preservation** for professional-looking resized images
-- **Proper HTTP error codes** returning 404 when source images don't exist
+- **Aspect ratio preservation** for resized images
 
 ## Why libvips?
 
