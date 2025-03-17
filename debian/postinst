@@ -1,0 +1,12 @@
+#!/bin/sh
+set -e
+
+# Ensure cache directory has correct permissions
+if [ "$1" = "configure" ]; then
+    chown www-data:www-data /var/cache/apache2/image_resize
+    chmod 755 /var/cache/apache2/image_resize
+fi
+
+#DEBHELPER#
+
+exit 0
