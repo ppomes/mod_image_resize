@@ -6,3 +6,5 @@ url: "https://ppomes.github.io"
 baseurl: "/mod_image_resize"
 plugins:
   - jekyll-sitemap
+google_analytics: G-W7EHWGQPYG
+
