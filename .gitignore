@@ -1,0 +1,11 @@
+.libs/
+debian/.debhelper/
+debian/build-deps/
+debian/debhelper-build-stamp
+debian/files
+debian/mod-image-resize*
+*.la
+*.lo
+*.slo
+*.o
+.DS_Store
