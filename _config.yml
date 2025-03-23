@@ -1,6 +1,6 @@
 theme: jekyll-theme-cayman
 title: mod_image_resize
-description: Resize, compress and cache images on-the-fly with Apache and libvipss
+description: Resize, compress and cache images on-the-fly with Apache and libvips
 show_downloads: false
 url: "https://ppomes.github.io"
 baseurl: "/mod_image_resize"
