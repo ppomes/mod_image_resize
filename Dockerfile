@@ -1,7 +1,7 @@
 # =============================================================================
 # Stage 1: Builder
 # =============================================================================
-FROM ubuntu:22.04 AS builder
+FROM debian:trixie AS builder
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -114,21 +114,21 @@ RUN ldconfig && \
 # =============================================================================
 # Stage 2: Runtime
 # =============================================================================
-FROM ubuntu:22.04
+FROM debian:trixie
 
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Install only runtime dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     apache2 \
-    libarchive13 \
-    libpng16-16 \
+    libarchive13t64 \
+    libpng16-16t64 \
     libimagequant0 \
-    libglib2.0-0 \
+    libglib2.0-0t64 \
     libexpat1 \
     libfftw3-double3 \
     libexif12 \
-    libtiff5 \
+    libtiff6 \
     libwebp7 \
     libwebpdemux2 \
     libwebpmux3 \
@@ -137,7 +137,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpango-1.0-0 \
     libpangocairo-1.0-0 \
     librsvg2-2 \
-    liborc-0.4-0 \
+    liborc-0.4-0t64 \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy MozJPEG libraries
